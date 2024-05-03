@@ -36,6 +36,21 @@ TypeId RdmaHw::GetTypeId (void)
                 UintegerValue(0),
                 MakeUintegerAccessor(&RdmaHw::m_cc_mode),
                 MakeUintegerChecker<uint32_t>())
+        .AddAttribute("SeanetEnable",
+                "enable seanet header",
+                BooleanValue(true),
+                MakeBooleanAccessor(&RdmaHw::m_seanet_enable),
+                MakeBooleanChecker())
+        .AddAttribute("DebugLog",
+                "enable debug log",
+                BooleanValue(false),
+                MakeBooleanAccessor(&RdmaHw::m_debug_log),
+                MakeBooleanChecker())
+        .AddAttribute("RetransmissionTimeFactor",
+                "set retransmission time factor",
+                DoubleValue(20.0),
+                MakeDoubleAccessor(&RdmaHw::m_retransmission_time_factor),
+                MakeDoubleChecker<double>())
         .AddAttribute("NACK Generation Interval",
                 "The NACK Generation interval",
                 DoubleValue(500.0),
@@ -379,17 +394,16 @@ int RdmaHw::ReceiveUdp(Ptr<Packet> p, CustomHeader &ch){
     m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(newp);
     m_nic[nic_idx].dev->TriggerTransmit();
 
-    #ifdef RDMA_HW_DEBUG_LOG
-    std::cout << "ReceiveUdp:: " \
-            << " pkt_dst: " << (ch.dip>>24) << "." << ((ch.dip>>16)&0xff) << "." << ((ch.dip>>8)&0xff) << "." << ((ch.dip)&0xff) \
-            << "; src_ip " << (ch.sip>>24) << "." << ((ch.sip>>16)&0xff) << "." << ((ch.sip>>8)&0xff) << "." << ((ch.sip)&0xff) \
-            << "; leaf rcv addr " << ((ch.udp.nextaddr)&0xff) << "." << ((ch.udp.nextaddr>>8)&0xff) << "." << ((ch.udp.nextaddr>>16)&0xff) << "." << (ch.udp.nextaddr>>24) \
-            << "; rcv udp seq: " << ch.udp.seq \
-            << "; send ack seq: " << ch.udp.seq+payload_size \
-            << "; send ack pg: " << ch.udp.pg \
-            << " now time " << Simulator::Now().GetTimeStep() \
-            << std::endl;
-    #endif
+    if (m_debug_log)
+        std::cout << "ReceiveUdp:: " \
+                  << " pkt_dst: " << (ch.dip>>24) << "." << ((ch.dip>>16)&0xff) << "." << ((ch.dip>>8)&0xff) << "." << ((ch.dip)&0xff) \
+                  << "; src_ip " << (ch.sip>>24) << "." << ((ch.sip>>16)&0xff) << "." << ((ch.sip>>8)&0xff) << "." << ((ch.sip)&0xff) \
+                  << "; leaf rcv addr " << ((ch.udp.nextaddr)&0xff) << "." << ((ch.udp.nextaddr>>8)&0xff) << "." << ((ch.udp.nextaddr>>16)&0xff) << "." << (ch.udp.nextaddr>>24) \
+                  << "; rcv udp seq: " << ch.udp.seq \
+                  << "; send ack seq: " << ch.udp.seq+payload_size \
+                  << "; send ack pg: " << ch.udp.pg \
+                  << " now time " << Simulator::Now().GetTimeStep() \
+                  << std::endl;
     return 0;
 }
 
@@ -447,11 +461,10 @@ int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch){
     Ptr<RdmaQueuePair> qp = GetQp(ch.cnp.dstaddr, udpport, qIndex);
     
     if (qp == NULL) {
-        #ifdef RDMA_HW_DEBUG_LOG
-        std::cout << "ERROR: QCN NIC cannot find the flow" << " dst ip " \
-                << (ch.cnp.dstaddr>>24) << "." << ((ch.cnp.dstaddr>>16)&0xff) << "." << ((ch.cnp.dstaddr>>8)&0xff) << "." << ((ch.cnp.dstaddr)&0xff) \
-                << " udpport " << udpport << " qIndex " << qIndex << std::endl;
-        #endif
+        if (m_debug_log)
+            std::cout << "ERROR: QCN NIC cannot find the flow" << " dst ip " \
+                    << (ch.cnp.dstaddr>>24) << "." << ((ch.cnp.dstaddr>>16)&0xff) << "." << ((ch.cnp.dstaddr>>8)&0xff) << "." << ((ch.cnp.dstaddr)&0xff) \
+                    << " udpport " << udpport << " qIndex " << qIndex << std::endl;
         return 0;
     }
     // get nic
@@ -466,19 +479,19 @@ int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch){
         }
     }
 
-    #ifdef RDMA_HW_DEBUG_LOG
-    std::cout << "ReceiveCnp::" \
-            << "  pkt_dst: " << (ch.dip>>24) << "." << ((ch.dip>>16)&0xff) << "." << ((ch.dip>>8)&0xff) << "." << ((ch.dip)&0xff) \
-            << "; src_ip " << (ch.sip>>24) << "." << ((ch.sip>>16)&0xff) << "." << ((ch.sip>>8)&0xff) << "." << ((ch.sip)&0xff) \
-            << "; next_ip " << ((ch.cnp.nextaddr)&0xff) << "." << ((ch.cnp.nextaddr>>8)&0xff) << "." << ((ch.cnp.nextaddr>>16)&0xff) << "." << (ch.cnp.nextaddr>>24) \
-            << "; rcv ack seq: " << ch.cnp.seq \
-            << "; rcv ack port: " << udpport \
-            << "; rcv qIndex: " << qIndex \
-            << "; now time " << Simulator::Now().GetTimeStep() \
-            << std::endl;
-    p->Print(std::cout);
-    std::cout << std::endl;
-    #endif
+    if (m_debug_log) {
+        std::cout << "ReceiveCnp::" \
+                  << "  pkt_dst: " << (ch.dip>>24) << "." << ((ch.dip>>16)&0xff) << "." << ((ch.dip>>8)&0xff) << "." << ((ch.dip)&0xff) \
+                  << "; src_ip " << (ch.sip>>24) << "." << ((ch.sip>>16)&0xff) << "." << ((ch.sip>>8)&0xff) << "." << ((ch.sip)&0xff) \
+                  << "; next_ip " << ((ch.cnp.nextaddr)&0xff) << "." << ((ch.cnp.nextaddr>>8)&0xff) << "." << ((ch.cnp.nextaddr>>16)&0xff) << "." << (ch.cnp.nextaddr>>24) \
+                  << "; rcv ack seq: " << ch.cnp.seq \
+                  << "; rcv ack port: " << udpport \
+                  << "; rcv qIndex: " << qIndex \
+                  << "; now time " << Simulator::Now().GetTimeStep() \
+                  << std::endl;
+        p->Print(std::cout);
+        std::cout << std::endl;
+    }
     return 0;
 }
 
@@ -489,16 +502,16 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch){
     uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
     bool valid_ack = false, move_win = false;
     Ptr<RdmaQueuePair> qp = GetQp(ch.sip, port, qIndex);
-    #ifdef RDMA_HW_DEBUG_LOG
-    std::cout << "ReceiveAck1:: " \
-            << " pkt_dst: " << (ch.dip>>24) << "." << ((ch.dip>>16)&0xff) << "." << ((ch.dip>>8)&0xff) << "." << ((ch.dip)&0xff) \
-            << "; src_ip " << (ch.sip>>24) << "." << ((ch.sip>>16)&0xff) << "." << ((ch.sip>>8)&0xff) << "." << ((ch.sip)&0xff) \
-            << "; rcv ack seq: " << ch.udp.seq \
-            << "; rcv ack port: " << port \
-            << "; rcv qIndex: " << qIndex \
-            << " now time " << Simulator::Now().GetTimeStep() \
-            << std::endl;
-    #endif
+    if (m_debug_log) {
+        std::cout << "ReceiveAck1:: " \
+                << " pkt_dst: " << (ch.dip>>24) << "." << ((ch.dip>>16)&0xff) << "." << ((ch.dip>>8)&0xff) << "." << ((ch.dip)&0xff) \
+                << "; src_ip " << (ch.sip>>24) << "." << ((ch.sip>>16)&0xff) << "." << ((ch.sip>>8)&0xff) << "." << ((ch.sip)&0xff) \
+                << "; rcv ack seq: " << ch.udp.seq \
+                << "; rcv ack port: " << port \
+                << "; rcv qIndex: " << qIndex \
+                << " now time " << Simulator::Now().GetTimeStep() \
+                << std::endl;
+    }
 
     if (qp == NULL){
         std::cout << "ERROR: " << "node:" << m_node->GetId() << ' ' << (ch.l3Prot == 0xFC ? "ACK" : "NACK") << " NIC cannot find the flow\n";
@@ -507,11 +520,11 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch){
     for (auto it = qp->m_outstanding_pkts.begin(); it != qp->m_outstanding_pkts.end(); ++it) {
         if ((it->expect_ack == seq) && (it->acked == false)) {   // valid ack, delete this inflight pkt map
             it->acked = true;
-            #ifdef RDMA_HW_DEBUG_LOG
-            std::cout << "ReceiveAck2 : "\
-                      << "expect_ack " << it->expect_ack << " rcv_ack " << seq << " qp->snd_una " << qp->snd_una << " qp->snd_nxt " << qp->snd_nxt << " it->acked " << it->acked \
-                      << std::endl;
-            #endif
+            if (m_debug_log) {
+                std::cout << "ReceiveAck2 : "\
+                          << "expect_ack " << it->expect_ack << " rcv_ack " << seq << " qp->snd_una " << qp->snd_una << " qp->snd_nxt " << qp->snd_nxt << " it->acked " << it->acked \
+                          << std::endl;
+            }
             if (it == qp->m_outstanding_pkts.begin()) {
                 move_win = true;
                 do {
@@ -541,9 +554,9 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch){
             uint32_t goback_seq = seq / m_chunk * m_chunk;
             qp->Acknowledge(goback_seq);
         }
-        #ifdef RDMA_HW_DEBUG_LOG
-        std::cout << "ReceiveAck3 move_win :: snd_una " << qp->snd_una << " snd_nxt " << qp->snd_nxt << " " << qp->m_outstanding_pkts.size() << std::endl;
-        #endif
+        if (m_debug_log) {
+            std::cout << "ReceiveAck3 move_win :: snd_una " << qp->snd_una << " snd_nxt " << qp->snd_nxt << " " << qp->m_outstanding_pkts.size() << std::endl;
+        }
         if (qp->IsFinished()){  // TODO: add inflight empty judge
             QpComplete(qp);
         }
@@ -699,11 +712,6 @@ Ipv4Address RdmaHw::GetRandNextIp(uint16_t dst_id) {
 }
 
 void RdmaHw::GenPacket(Ptr<Packet> p, Ptr<RdmaQueuePair> qp, uint32_t seq) {
-    #ifdef ENABLE_SEANET
-    // add SeanetHeader
-    SeanetHeader seanet;
-    seanet.SetSEADstAddr (qp->dip.Get());
-    #endif
     // add SeqTsHeader
     SeqTsHeader seqTs;
     seqTs.SetSeq (seq);
@@ -715,13 +723,17 @@ void RdmaHw::GenPacket(Ptr<Packet> p, Ptr<RdmaQueuePair> qp, uint32_t seq) {
     // add ipv4 header
     Ipv4Header ipHeader;
     ipHeader.SetSource (qp->sip);
-    #ifdef ENABLE_SEANET
-    ipHeader.SetDestination (GetRandNextIp(qp->dst_id));
-    seanet.SetSEANextAddr (GetRandNextIp(qp->dst_id).Get());
-    p->AddHeader (seanet);
-    #else
-    ipHeader.SetDestination (qp->dip);
-    #endif
+    if (m_seanet_enable) {
+        // add SeanetHeader
+        SeanetHeader seanet;
+        Ipv4Address next_ip = GetRandNextIp(qp->dst_id);
+        seanet.SetSEADstAddr (qp->dip.Get());
+        seanet.SetSEANextAddr (next_ip.Get());
+        ipHeader.SetDestination (next_ip);
+        p->AddHeader (seanet);
+    } else {
+        ipHeader.SetDestination (qp->dip);
+    }
     p->AddHeader (seqTs);
     p->AddHeader (udpHeader);
     ipHeader.SetProtocol (0x11);
@@ -744,12 +756,16 @@ Ptr<Packet> RdmaHw::GetRetransPacket(Ptr<RdmaQueuePair> qp) {
             Ptr<Packet> p = Create<Packet> (qp->m_outstanding_pkts[i].size);
             GenPacket(p, qp, qp->m_outstanding_pkts[i].seq);
             qp->m_outstanding_pkts[i].last_send_time = now_time;
-            qp->m_outstanding_pkts[i].next_send_time = now_time + uint64_t(m_maxRtt*2);
-            #ifdef RDMA_HW_DEBUG_LOG
-            std::cout << "RetransPacket11 : dst_ip " << (qp->dip.Get()>>24) << "." << ((qp->dip.Get()>>16)&0xff) << "." << ((qp->dip.Get()>>8)&0xff) << "." << ((qp->dip.Get())&0xff)\
-                    << "; src_ip " << (qp->sip.Get()>>24) << "." << ((qp->sip.Get()>>16)&0xff) << "." << ((qp->sip.Get()>>8)&0xff) << "." << ((qp->sip.Get())&0xff)\
-                    << "; seq " << qp->m_outstanding_pkts[i].seq << " now_time " << now_time << " last_send_time " << qp->m_outstanding_pkts[i].last_send_time << " next_send_time " << qp->m_outstanding_pkts[i].next_send_time << " m_maxRtt " << m_maxRtt << std::endl;
-            #endif
+            qp->m_outstanding_pkts[i].next_send_time = now_time + uint64_t(m_maxRtt*m_retransmission_time_factor);
+            if (m_debug_log) {
+                std::cout << "RetransPacket11 : dst_ip " << (qp->dip.Get()>>24) << "." << ((qp->dip.Get()>>16)&0xff) << "." << ((qp->dip.Get()>>8)&0xff) << "." << ((qp->dip.Get())&0xff)\
+                          << "; src_ip " << (qp->sip.Get()>>24) << "." << ((qp->sip.Get()>>16)&0xff) << "." << ((qp->sip.Get()>>8)&0xff) << "." << ((qp->sip.Get())&0xff)\
+                          << "; seq " << qp->m_outstanding_pkts[i].seq << " now_time " << now_time << " last_send_time " << qp->m_outstanding_pkts[i].last_send_time << " next_send_time " << qp->m_outstanding_pkts[i].next_send_time\
+                          << " m_maxRtt " << m_maxRtt << " retransmission time gap " << (m_maxRtt*m_retransmission_time_factor) << std::endl;
+                std::cout << "packet send: ";
+                p->Print(std::cout);
+                std::cout << std::endl;
+            }
             return p;
         }
     }
@@ -768,7 +784,7 @@ Ptr<Packet> RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp){
         payload_size = m_mtu;
     p = Create<Packet> (payload_size);
     GenPacket(p, qp, qp->snd_nxt);
-    qp->m_outstanding_pkts.push_back(SeqMgr(qp->snd_nxt, payload_size, Simulator::Now().GetTimeStep(), Simulator::Now().GetTimeStep()+uint64_t(m_maxRtt*2), qp->sip));
+    qp->m_outstanding_pkts.push_back(SeqMgr(qp->snd_nxt, payload_size, Simulator::Now().GetTimeStep(), Simulator::Now().GetTimeStep()+uint64_t(m_maxRtt*m_retransmission_time_factor), qp->sip));
     // update state
     qp->snd_nxt += payload_size;
     qp->m_ipid++;

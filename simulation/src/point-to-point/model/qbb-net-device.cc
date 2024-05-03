@@ -191,6 +191,11 @@ TypeId
             BooleanValue(false),
             MakeBooleanAccessor(&QbbNetDevice::m_qcnEnabled),
             MakeBooleanChecker())
+        .AddAttribute("SeanetEnabled",
+            "Enable the generation of PAUSE packet.",
+            BooleanValue(true),
+            MakeBooleanAccessor(&QbbNetDevice::m_seanetEnabled),
+            MakeBooleanChecker())
         .AddAttribute("DynamicThreshold",
             "Enable dynamic threshold.",
             BooleanValue(false),
@@ -374,7 +379,7 @@ void
     }
 
     m_macRxTrace(packet);
-    CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+    CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header | (m_seanetEnabled?CustomHeader::SEANET_Header:0));
     ch.getInt = 1; // parse INT header
     packet->PeekHeader(ch);
     if (ch.l3Prot == 0xFE){ // PFC
@@ -427,7 +432,7 @@ void QbbNetDevice::SendPfc(uint32_t qIndex, uint32_t type){
     ipv4h.SetIdentification(UniformVariable(0, 65536).GetValue());
     p->AddHeader(ipv4h);
     AddHeader(p, 0x800);
-    CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+    CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header | (m_seanetEnabled?CustomHeader::SEANET_Header:0));
     p->PeekHeader(ch);
     SwitchSend(0, p, ch);
 }

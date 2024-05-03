@@ -311,7 +311,7 @@ QbbHelper::Install (std::string aName, std::string bName)
 }
 
 void QbbHelper::GetTraceFromPacket(TraceFormat &tr, Ptr<QbbNetDevice> dev, Ptr<const Packet> p, uint32_t qidx, Event event, bool hasL2){
-	CustomHeader hdr((hasL2?CustomHeader::L2_Header:0) | CustomHeader::L3_Header | CustomHeader::L4_Header);
+	CustomHeader hdr((hasL2?CustomHeader::L2_Header:0) | CustomHeader::L3_Header | CustomHeader::L4_Header | CustomHeader::SEANET_Header);
 	p->PeekHeader(hdr);
 
 	tr.event = event;

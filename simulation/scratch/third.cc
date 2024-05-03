@@ -42,6 +42,14 @@ using namespace std;
 
 NS_LOG_COMPONENT_DEFINE("GENERIC_SIMULATION");
 
+// for seanet test
+bool enable_seanet = true;
+bool sw_fast_cnp = true;
+bool enable_pfc = false;
+double retransmission_time_factor = 20.0;
+bool enable_rdma_hw_debug_log = false;
+bool enable_switch_debug_log = false;
+
 uint32_t cc_mode = 1;
 bool enable_qcn = true, use_dynamic_pfc_threshold = true;
 uint32_t packet_payload_size = 1000, l2_chunk_size = 0, l2_ack_interval = 0;
@@ -180,7 +188,7 @@ uint32_t ip_to_node_id(Ipv4Address ip){
 void qp_finish(FILE* fout, Ptr<RdmaQueuePair> q){
     uint32_t sid = ip_to_node_id(q->sip), did = ip_to_node_id(q->dip);
     uint64_t base_rtt = pairRtt[sid][did], b = pairBw[sid][did];
-    uint32_t total_bytes = q->m_size + ((q->m_size-1) / packet_payload_size + 1) * (CustomHeader::GetStaticWholeHeaderSize() - IntHeader::GetStaticSize()); // translate to the minimum bytes required (with header but no INT)
+    uint32_t total_bytes = q->m_size + ((q->m_size-1) / packet_payload_size + 1) * (CustomHeader::GetStaticWholeHeaderSize(enable_seanet) - IntHeader::GetStaticSize()); // translate to the minimum bytes required (with header but no INT)
     uint64_t standalone_fct = base_rtt + total_bytes * 8000000000lu / b;
     // sip, dip, sport, dport, size (B), start_time, fct (ns), standalone_fct (ns)
     fprintf(fout, "%08x %08x %u %u %lu %lu %lu %lu\n", q->sip.Get(), q->dip.Get(), q->sport, q->dport, q->m_size, q->startTime.GetTimeStep(), (Simulator::Now() - q->startTime).GetTimeStep(), standalone_fct);
@@ -706,12 +714,57 @@ int main(int argc, char *argv[])
                 conf >> v;
                 sample_feedback = v;
                 std::cout << "SAMPLE_FEEDBACK\t\t\t\t" << sample_feedback << '\n';
-            }else if(key.compare("PINT_LOG_BASE") == 0){
+            }else if (key.compare("PINT_LOG_BASE") == 0){
                 conf >> pint_log_base;
                 std::cout << "PINT_LOG_BASE\t\t\t\t" << pint_log_base << '\n';
             }else if (key.compare("PINT_PROB") == 0){
                 conf >> pint_prob;
                 std::cout << "PINT_PROB\t\t\t\t" << pint_prob << '\n';
+            }else if (key.compare("ENABLE_PFC") == 0) {
+                uint32_t v;
+                conf >> v;
+                enable_pfc = v;
+                if (enable_pfc)
+                    std::cout << "ENABLE_PFC\t\t\t" << "Yes" << "\n";
+                else
+                    std::cout << "ENABLE_PFC\t\t\t" << "No" << "\n";
+            }else if (key.compare("ENABLE_SEANET") == 0) {
+                uint32_t v;
+                conf >> v;
+                enable_seanet = v;
+                if (enable_seanet)
+                    std::cout << "ENABLE_SEANET\t\t\t" << "Yes" << "\n";
+                else
+                    std::cout << "ENABLE_SEANET\t\t\t" << "No" << "\n";
+            }else if (key.compare("SW_FAST_CNP") == 0) {
+                uint32_t v;
+                conf >> v;
+                sw_fast_cnp = v;
+                if (sw_fast_cnp)
+                    std::cout << "SW_FAST_CNP\t\t\t" << "Yes" << "\n";
+                else
+                    std::cout << "SW_FAST_CNP\t\t\t" << "No" << "\n";
+            }else if (key.compare("RETRANSMISSION_TIME_FACTOR") == 0) {
+                double v;
+                conf >> v;
+                retransmission_time_factor = v;
+                std::cout << "RETRANSMISSION_TIME_FACTOR\t\t" << retransmission_time_factor << "\n";
+            }else if (key.compare("RDMA_HW_DEBUG_LOG") == 0) {
+                uint32_t v;
+                conf >> v;
+                enable_rdma_hw_debug_log = v;
+                if (enable_rdma_hw_debug_log)
+                    std::cout << "RDMA_HW_DEBUG_LOG\t\t\t" << "Yes" << "\n";
+                else
+                    std::cout << "RDMA_HW_DEBUG_LOG\t\t\t" << "No" << "\n";
+            }else if (key.compare("SWITCH_DEBUG_LOG") == 0) {
+                uint32_t v;
+                conf >> v;
+                enable_switch_debug_log = v;
+                if (enable_switch_debug_log)
+                    std::cout << "SWITCH_DEBUG_LOG\t\t\t" << "Yes" << "\n";
+                else
+                    std::cout << "SWITCH_DEBUG_LOG\t\t\t" << "No" << "\n";
             }
             fflush(stdout);
         }
@@ -729,6 +782,7 @@ int main(int argc, char *argv[])
     Packet::EnablePrinting ();
     Config::SetDefault("ns3::QbbNetDevice::PauseTime", UintegerValue(pause_time));
     Config::SetDefault("ns3::QbbNetDevice::QcnEnabled", BooleanValue(enable_qcn));
+    Config::SetDefault("ns3::QbbNetDevice::SeanetEnabled", BooleanValue(enable_seanet));
     Config::SetDefault("ns3::QbbNetDevice::DynamicThreshold", BooleanValue(dynamicth));
 
     // set int_multi
@@ -776,6 +830,10 @@ int main(int argc, char *argv[])
             Ptr<SwitchNode> sw = CreateObject<SwitchNode>();
             n.Add(sw);
             sw->SetAttribute("EcnEnabled", BooleanValue(enable_qcn));
+            sw->SetAttribute("PfcEnabled", BooleanValue(enable_pfc));
+            sw->SetAttribute("SeanetEnabled", BooleanValue(enable_seanet));
+            sw->SetAttribute("SwitchFastCnp", BooleanValue(sw_fast_cnp));
+            sw->SetAttribute("SwitchDebugLog", BooleanValue(enable_switch_debug_log));
         }
     }
 
@@ -1019,6 +1077,9 @@ int main(int argc, char *argv[])
             rdmaHw->SetAttribute("L2ChunkSize", UintegerValue(l2_chunk_size));
             rdmaHw->SetAttribute("L2AckInterval", UintegerValue(l2_ack_interval));
             rdmaHw->SetAttribute("CcMode", UintegerValue(cc_mode));
+            rdmaHw->SetAttribute("SeanetEnable", BooleanValue(enable_seanet));
+            rdmaHw->SetAttribute("DebugLog", BooleanValue(enable_rdma_hw_debug_log));
+            rdmaHw->SetAttribute("RetransmissionTimeFactor", DoubleValue(retransmission_time_factor));
             rdmaHw->SetAttribute("RateDecreaseInterval", DoubleValue(rate_decrease_interval));
             rdmaHw->SetAttribute("MinRate", DataRateValue(DataRate(min_rate)));
             rdmaHw->SetAttribute("Mtu", UintegerValue(packet_payload_size));

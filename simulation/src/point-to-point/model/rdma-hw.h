@@ -39,6 +39,9 @@ public:
     bool m_backto0;
     bool m_var_win, m_fast_react;
     bool m_rateBound;
+    bool m_seanet_enable;
+    bool m_debug_log;
+    double m_retransmission_time_factor;
     uint64_t m_maxRtt;
     uint64_t m_weight_lock_period = 8000;
 

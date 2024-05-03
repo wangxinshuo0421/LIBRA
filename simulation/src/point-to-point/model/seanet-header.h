@@ -43,9 +43,6 @@ public:
     uint32_t GetSEANextAddr (void);
     uint32_t GetSEADstAddr (void);
 
-    uint32_t GetSEANextAddrHostOrder (void);
-    uint32_t GetSEADstAddrHostOrder (void);
-
 private:
 
     /**
@@ -53,8 +50,6 @@ private:
      */
     uint32_t m_seanet_next_addr;
     uint32_t m_seanet_dst_addr;
-    uint32_t m_seanet_next_addr_ntoh;
-    uint32_t m_seanet_dst_addr_ntoh;
 };
 
 } // namespace ns3

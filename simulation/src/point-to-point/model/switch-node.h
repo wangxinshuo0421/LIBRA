@@ -28,7 +28,11 @@ class SwitchNode : public Node{
 
 protected:
     bool m_ecnEnabled;
+    bool m_pfcEnabled;
+    bool m_seanetEnabled;
+    bool m_sw_fast_cnp;
     bool m_is_leaf_sw;
+    bool m_debug_log;
     uint32_t m_ccMode;
     uint64_t m_maxRtt;
 

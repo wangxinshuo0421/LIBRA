@@ -34,6 +34,26 @@ static TypeId tid = TypeId ("ns3::SwitchNode")
             BooleanValue(false),
             MakeBooleanAccessor(&SwitchNode::m_ecnEnabled),
             MakeBooleanChecker())
+    .AddAttribute("PfcEnabled",
+            "Enable PFC.",
+            BooleanValue(false),
+            MakeBooleanAccessor(&SwitchNode::m_pfcEnabled),
+            MakeBooleanChecker())
+    .AddAttribute("SeanetEnabled",
+            "Enable Seanet parser.",
+            BooleanValue(true),
+            MakeBooleanAccessor(&SwitchNode::m_seanetEnabled),
+            MakeBooleanChecker())
+    .AddAttribute("SwitchFastCnp",
+            "Enable Switch Fast CNP.",
+            BooleanValue(true),
+            MakeBooleanAccessor(&SwitchNode::m_sw_fast_cnp),
+            MakeBooleanChecker())
+    .AddAttribute("SwitchDebugLog",
+            "Enable Switch Debug Log.",
+            BooleanValue(true),
+            MakeBooleanAccessor(&SwitchNode::m_debug_log),
+            MakeBooleanChecker())
     .AddAttribute("CcMode",
             "CC mode.",
             UintegerValue(0),
@@ -165,31 +185,31 @@ void SwitchNode::SendToDev(Ptr<Packet>p, CustomHeader &ch){
                 m_mmu->UpdateIngressAdmission(inDev, qIndex, p->GetSize());
                 m_mmu->UpdateEgressAdmission(idx, qIndex, p->GetSize());
             }else{
-                #ifdef SW_DEBUG_LOG
-                std::cout   << "switch-node:: SendToDev, drop becausc of buffer full : " \
-                            << " pkt_dst: " << (ch.dip>>24) << "." << ((ch.dip>>16)&0xff) << "." << ((ch.dip>>8)&0xff) << "." << ((ch.dip)&0xff) \
-                            << "; src_ip " << (ch.sip>>24) << "." << ((ch.sip>>16)&0xff) << "." << ((ch.sip>>8)&0xff) << "." << ((ch.sip)&0xff) \
-                            << "; rcv udp seq: " << ch.udp.seq \
-                            << " now time " << Simulator::Now().GetTimeStep() \
-                            << std::endl;
-                #endif
+                if (m_debug_log) {
+                    std::cout   << "switch-node:: SendToDev, drop becausc of buffer full : " \
+                                << " pkt_dst: " << (ch.dip>>24) << "." << ((ch.dip>>16)&0xff) << "." << ((ch.dip>>8)&0xff) << "." << ((ch.dip)&0xff) \
+                                << "; src_ip " << (ch.sip>>24) << "." << ((ch.sip>>16)&0xff) << "." << ((ch.sip>>8)&0xff) << "." << ((ch.sip)&0xff) \
+                                << "; rcv udp seq: " << ch.udp.seq \
+                                << " now time " << Simulator::Now().GetTimeStep() \
+                                << std::endl;
+                }
                 return; // Drop
             }
-            #ifdef ENABLE_PFC
-            CheckAndSendPfc(inDev, qIndex);
-            #endif
+            if (m_pfcEnabled) {
+                CheckAndSendPfc(inDev, qIndex);
+            }
         }
         m_bytes[inDev][idx][qIndex] += p->GetSize();
         m_devices[idx]->SwitchSend(qIndex, p, ch);
     }else{
-        #ifdef SW_DEBUG_LOG
-        std::cout << "switch-node:: SendToDev, drop becausc of route entry missing : " \
-                << " pkt_dst: " << (ch.dip>>24) << "." << ((ch.dip>>16)&0xff) << "." << ((ch.dip>>8)&0xff) << "." << ((ch.dip)&0xff) \
-                << "; src_ip " << (ch.sip>>24) << "." << ((ch.sip>>16)&0xff) << "." << ((ch.sip>>8)&0xff) << "." << ((ch.sip)&0xff) \
-                << "; rcv udp seq: " << ch.udp.seq \
-                << " now time " << Simulator::Now().GetTimeStep() \
-                << std::endl;
-        #endif
+        if (m_debug_log) {
+            std::cout << "switch-node:: SendToDev, drop becausc of route entry missing : " \
+                    << " pkt_dst: " << (ch.dip>>24) << "." << ((ch.dip>>16)&0xff) << "." << ((ch.dip>>8)&0xff) << "." << ((ch.dip)&0xff) \
+                    << "; src_ip " << (ch.sip>>24) << "." << ((ch.sip>>16)&0xff) << "." << ((ch.sip>>8)&0xff) << "." << ((ch.sip)&0xff) \
+                    << "; rcv udp seq: " << ch.udp.seq \
+                    << " now time " << Simulator::Now().GetTimeStep() \
+                    << std::endl;
+        }
         return; // Drop
     }
 }
@@ -290,14 +310,23 @@ void SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Pack
         if (m_ecnEnabled){
             bool egressCongested = m_mmu->ShouldSendCN(ifIndex, qIndex);
             if (egressCongested){
-                #ifdef SW_FAST_CNP
-                CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
-                //generate Cnp; Disorderly direct writing
-                p->PeekHeader(ch);
-                if (m_is_leaf_sw) {
-                    Ptr<QbbNetDevice> device = DynamicCast<QbbNetDevice>(m_devices[inDev]);
-                    Ptr<Packet> cnp = GenFastCnp(p, ch);
-                    device->SendCnp(cnp, ch);
+                if (m_sw_fast_cnp) {
+                    CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header | (m_seanetEnabled?CustomHeader::SEANET_Header:0));
+                    //generate Cnp; Disorderly direct writing
+                    p->PeekHeader(ch);
+                    if (m_is_leaf_sw) {
+                        Ptr<QbbNetDevice> device = DynamicCast<QbbNetDevice>(m_devices[inDev]);
+                        Ptr<Packet> cnp = GenFastCnp(p, ch);
+                        device->SendCnp(cnp, ch);
+                    } else {
+                        PppHeader ppp;
+                        Ipv4Header h;
+                        p->RemoveHeader(ppp);
+                        p->RemoveHeader(h);
+                        h.SetEcn((Ipv4Header::EcnType)0x03);
+                        p->AddHeader(h);
+                        p->AddHeader(ppp);
+                    }
                 } else {
                     PppHeader ppp;
                     Ipv4Header h;
@@ -307,20 +336,11 @@ void SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Pack
                     p->AddHeader(h);
                     p->AddHeader(ppp);
                 }
-                #else
-                PppHeader ppp;
-                Ipv4Header h;
-                p->RemoveHeader(ppp);
-                p->RemoveHeader(h);
-                h.SetEcn((Ipv4Header::EcnType)0x03);
-                p->AddHeader(h);
-                p->AddHeader(ppp);
-                #endif
             }
         }
-        #ifdef ENABLE_PFC
-        CheckAndSendResume(inDev, qIndex);
-        #endif
+        if (m_pfcEnabled) {
+            CheckAndSendResume(inDev, qIndex);
+        }
     }
     if (1){
         uint8_t* buf = p->GetBuffer();
