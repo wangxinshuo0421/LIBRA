@@ -262,3 +262,85 @@ min = 191930; avg = 755600; max = 14538010;
 41867
 
 11769
+
+## ring_all_reduce: 8MB (256条流)
+### seanet(DCQCN): (多传输8Byte的包长)
+    min: 707992
+    avg: 708270
+    max: 712264
+### normal(DCQCN):
+    min: 699991
+    avg: 700268
+    max: 704261
+### normal(HPCC):
+    min: 794186
+    avg: 797365
+    max: 830067
+
+## many_to_one: 8MB (16 to 1)
+## seanet(DCQCN) pfc on
+    min: 330009324
+    avg: 346698328
+    max: 355519536
+## seanet(DCQCN) pfc off retran:2RTT
+    min: 160517820
+    avg: 162776637
+    max: 165321276
+## seanet(DCQCN) pfc off retran:10RTT
+    min: 126091680
+    avg: 128131908
+    max: 129174564
+## seanet(DCQCN) pfc off retran:15RTT
+    min: 103942140
+    avg: 105283604
+    max: 106207284
+## seanet(DCQCN) pfc off retran:20RTT
+    min: 10753632
+    avg: 10757543
+    max: 10760268
+## seanet(DCQCN) pfc off retran:80RTT
+    min: 10746912
+    avg: 10756372
+    max: 10760268
+## normal(DCQCN)
+    min: 25618708
+    avg: 27748359
+    max: 29764234
+## normal(HPCC)
+    min: 9259239
+    avg: 11342723
+    max: 11920775
+
+## many_to_one: 32MB (16 to 1)
+## seanet(DCQCN) pfc on
+    min: 
+    avg: 
+    max: 
+## seanet(DCQCN) pfc off retran:2RTT
+    min: 
+    avg: 
+    max: 
+## seanet(DCQCN) pfc off retran:10RTT
+    min: 
+    avg: 
+    max: 
+## seanet(DCQCN) pfc off retran:15RTT
+    min: 
+    avg: 
+    max: 
+## seanet(DCQCN) pfc off retran:20RTT
+    min: 43011312
+    avg: 43015002
+    max: 43016268
+## seanet(DCQCN) pfc off retran:80RTT
+    min: 43007196
+    avg: 43013443
+    max: 43016268
+## normal(DCQCN)
+    min: 36878344
+    avg: 45440949
+    max: 51881206
+## normal(HPCC)
+    min: 48145829
+    avg: 50328915
+    max: 52038443

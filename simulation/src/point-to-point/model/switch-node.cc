@@ -175,7 +175,9 @@ void SwitchNode::SendToDev(Ptr<Packet>p, CustomHeader &ch){
                 #endif
                 return; // Drop
             }
+            #ifdef ENABLE_PFC
             CheckAndSendPfc(inDev, qIndex);
+            #endif
         }
         m_bytes[inDev][idx][qIndex] += p->GetSize();
         m_devices[idx]->SwitchSend(qIndex, p, ch);
@@ -316,8 +318,9 @@ void SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Pack
                 #endif
             }
         }
-        //CheckAndSendPfc(inDev, qIndex);
+        #ifdef ENABLE_PFC
         CheckAndSendResume(inDev, qIndex);
+        #endif
     }
     if (1){
         uint8_t* buf = p->GetBuffer();

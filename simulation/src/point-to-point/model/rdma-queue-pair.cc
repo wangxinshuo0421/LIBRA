@@ -120,6 +120,8 @@ uint64_t RdmaQueuePair::GetOnTheFly(){
 
 bool RdmaQueuePair::IsWinBound(){
     uint64_t w = GetWin();
+    // if (w != 0 && GetOnTheFly() >= w)
+    //     std::cout << "IsWinBound\n";
     return w != 0 && GetOnTheFly() >= w;
 }
 

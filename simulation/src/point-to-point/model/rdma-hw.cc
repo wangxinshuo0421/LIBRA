@@ -509,12 +509,8 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch){
             it->acked = true;
             #ifdef RDMA_HW_DEBUG_LOG
             std::cout << "ReceiveAck2 : "\
-                    << "expect_ack " << it->expect_ack \
-                    << " rcv_ack " << seq \
-                    << " qp->snd_una " << qp->snd_una \
-                    << " qp->snd_nxt " << qp->snd_nxt \
-                    << " it->acked " << it->acked \
-                    << std::endl;
+                      << "expect_ack " << it->expect_ack << " rcv_ack " << seq << " qp->snd_una " << qp->snd_una << " qp->snd_nxt " << qp->snd_nxt << " it->acked " << it->acked \
+                      << std::endl;
             #endif
             if (it == qp->m_outstanding_pkts.begin()) {
                 move_win = true;
@@ -748,7 +744,7 @@ Ptr<Packet> RdmaHw::GetRetransPacket(Ptr<RdmaQueuePair> qp) {
             Ptr<Packet> p = Create<Packet> (qp->m_outstanding_pkts[i].size);
             GenPacket(p, qp, qp->m_outstanding_pkts[i].seq);
             qp->m_outstanding_pkts[i].last_send_time = now_time;
-            qp->m_outstanding_pkts[i].next_send_time = now_time + uint64_t(m_maxRtt*1.5);
+            qp->m_outstanding_pkts[i].next_send_time = now_time + uint64_t(m_maxRtt*2);
             #ifdef RDMA_HW_DEBUG_LOG
             std::cout << "RetransPacket11 : dst_ip " << (qp->dip.Get()>>24) << "." << ((qp->dip.Get()>>16)&0xff) << "." << ((qp->dip.Get()>>8)&0xff) << "." << ((qp->dip.Get())&0xff)\
                     << "; src_ip " << (qp->sip.Get()>>24) << "." << ((qp->sip.Get()>>16)&0xff) << "." << ((qp->sip.Get()>>8)&0xff) << "." << ((qp->sip.Get())&0xff)\
@@ -772,7 +768,7 @@ Ptr<Packet> RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp){
         payload_size = m_mtu;
     p = Create<Packet> (payload_size);
     GenPacket(p, qp, qp->snd_nxt);
-    qp->m_outstanding_pkts.push_back(SeqMgr(qp->snd_nxt, payload_size, Simulator::Now().GetTimeStep(), Simulator::Now().GetTimeStep()+uint64_t(m_maxRtt*1.5), qp->sip));
+    qp->m_outstanding_pkts.push_back(SeqMgr(qp->snd_nxt, payload_size, Simulator::Now().GetTimeStep(), Simulator::Now().GetTimeStep()+uint64_t(m_maxRtt*2), qp->sip));
     // update state
     qp->snd_nxt += payload_size;
     qp->m_ipid++;
