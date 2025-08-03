@@ -17,4 +17,4 @@ Refer to the README.md under it for more details.
 For technical questions, please create an issue in this repo, so other people can benefit from your questions. 
 You may also check the issue list first to see if people have already asked the questions you have :)
 
-For other questions, please contact Rui Miao (miao.rui@alibaba-inc.com).
+For other questions, please contact Xinshuo Wang (wangxs@dsp.ac.com).
