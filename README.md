@@ -1,9 +1,7 @@
-# HPCC simulation
-[Project page of HPCC](https://hpcc-group.github.io/) includes latest news of HPCC and extensive evaluation results using this simulator.
+# LIBRA simulation
+This is an NS-3 simulator for LIBRA: Multi-Path Transport in Distributed Training Data Center Network (ICNP' 2025). It also includes the implementation of HPCC, DCQCN, TIMELY, DCTCP, PFC, ECN and Broadcom shared buffer switch.
 
-This is the simulator for [HPCC: High Precision Congestion Control (SIGCOMM' 2019)](https://rmiao.github.io/publications/hpcc-li.pdf). It also includes the implementation of DCQCN, TIMELY, DCTCP, PFC, ECN and Broadcom shared buffer switch.
-
-We have update this simulator to support HPCC-PINT, which reduces the INT header overhead to 1 to 2 byte. This improves the long flow completion time. See [PINT: Probabilistic In-band Network Telemetry (SIGCOMM' 2020)](https://liyuliang001.github.io/publications/pint.pdf).
+This project is based on the [HPCC NS3](https://github.com/alibaba-edu/High-Precision-Congestion-Control) code framework and supports additional features such as multi-path spray, out-of-order rdma packet direct write, sender bitmap, selective repeat, and switch congestion notification.
 
 ## NS-3 simulation
 The ns-3 simulation is under `simulation/`. Refer to the README.md under it for more details.
