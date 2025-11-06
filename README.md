@@ -1,5 +1,5 @@
 # LIBRA simulation
-This is an NS-3 simulator for [LIBRA: Multi-Path Transport in Distributed Training Data Center Network (ICNP' 2025)]((https://ieeexplore.ieee.org/document/11192456)). It also includes the implementation of HPCC, DCQCN, TIMELY, DCTCP, PFC, ECN and Broadcom shared buffer switch.
+This is an NS-3 simulator for [LIBRA: Multi-Path Transport in Distributed Training Data Center Network (ICNP' 2025)](https://ieeexplore.ieee.org/document/11192456). It also includes the implementation of HPCC, DCQCN, TIMELY, DCTCP, PFC, ECN and Broadcom shared buffer switch.
 
 This project is based on the [HPCC NS3](https://github.com/alibaba-edu/High-Precision-Congestion-Control) code framework and supports additional features such as **multi-path spray, out-of-order rdma packet direct write, sender bitmap, selective repeat, switch congestion notification, and path based congestion control**.
 
